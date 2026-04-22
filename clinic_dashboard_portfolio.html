@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>クリニック | 経営ダッシュボード</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f9f5;
+  --surface:#ffffff;
+  --surface2:#edf4ed;
+  --border:#c8dfc8;
+  --accent:#2e7d4f;
+  --g:#2e7d4f;
+  --r:#c0392b;
+  --p:#1a7a5e;
+  --o:#2980b9;
+  --teal:#16a085;
+  --text:#1a1a1a;
+  --muted:#4a6450;
+  --dim:#a0bfa0;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;font-weight:300;min-height:100vh;background-image:radial-gradient(circle at 75% 5%,rgba(46,125,79,.07) 0%,transparent 55%),radial-gradient(circle at 15% 85%,rgba(46,125,79,.05) 0%,transparent 50%);}
+
+/* HEADER */
+header{border-bottom:1px solid var(--border);padding:15px 28px;display:flex;align-items:center;justify-content:space-between;background:rgba(245,249,245,0.98);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;box-shadow:0 1px 0 var(--border);}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:32px;height:32px;background:linear-gradient(135deg,#1e8449,#16a085);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.logo-text{font-size:16px;font-weight:500;}
+.logo-sub{font-size:12px;color:var(--muted);}
+#lastUpdated{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;}
+
+/* BUTTONS */
+button{padding:10px 22px;border-radius:8px;font-size:14px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;border:none;transition:opacity .15s,transform .1s;}
+button:hover{opacity:.85;}button:active{transform:scale(.98);}
+.btn-primary{background:var(--accent);color:#fff;font-weight:500;}
+.btn-secondary{background:var(--surface);color:var(--muted);border:1px solid var(--border);}
+.btn-sm{padding:7px 15px;font-size:13px;}
+.btn-danger{background:transparent;color:var(--r);border:1px solid var(--r);padding:5px 12px;font-size:12px;}
+
+/* UPLOAD */
+#uploadSection{max-width:740px;margin:48px auto;padding:0 24px;text-align:center;}
+#uploadSection h2{font-size:24px;font-weight:400;margin-bottom:6px;}
+#uploadSection>p{color:var(--muted);font-size:15px;margin-bottom:26px;}
+.drop-zone{border:1.5px dashed var(--border);border-radius:14px;padding:42px 28px;cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface);}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(74,143,98,.07);}
+.drop-icon{font-size:34px;margin-bottom:12px;}
+.drop-zone h3{font-size:17px;font-weight:400;margin-bottom:4px;}
+.drop-zone p{font-size:14px;color:var(--muted);margin:0;}
+#fileInput{display:none;}
+.hint-row{margin-top:18px;display:flex;gap:7px;justify-content:center;flex-wrap:wrap;}
+.hint-tag{border:1px solid var(--border);border-radius:14px;padding:5px 14px;font-size:13px;color:var(--muted);}
+#fileList{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px;justify-content:center;}
+.file-chip{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;}
+.chip-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);}
+.chip-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:0;line-height:1;}
+.chip-del:hover{color:var(--r);}
+
+/* DASHBOARD */
+#dashboard{display:none;padding:20px 26px;max-width:1380px;margin:0 auto;}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.dash-title{font-size:20px;font-weight:400;}
+.dash-controls{display:flex;gap:8px;align-items:center;}
+select{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--text);font-size:14px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;outline:none;}
+select:focus{border-color:var(--accent);}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:11px;margin-bottom:16px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden;min-width:0;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi.c0::before{background:linear-gradient(90deg,#1e8449,transparent);}
+.kpi.c1::before{background:linear-gradient(90deg,var(--g),transparent);}
+.kpi.c2::before{background:linear-gradient(90deg,#16a085,transparent);}
+.kpi.c3::before{background:linear-gradient(90deg,#2980b9,transparent);}
+.kpi.c4::before{background:linear-gradient(90deg,var(--teal),transparent);}
+.kpi.c5::before{background:linear-gradient(90deg,var(--r),transparent);}
+.kpi-label{font-size:13px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px;}
+.kpi-value{font-size:22px;font-weight:500;font-family:'DM Mono',monospace;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kpi-sub{font-size:13px;margin-top:5px;}
+.up{color:var(--g);}.dn{color:var(--r);}.neu{color:var(--muted);}
+
+/* CHART GRID */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:13px;}
+@media(max-width:820px){.chart-grid{grid-template-columns:1fr;}}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;}
+.chart-card h3{font-size:13px;font-weight:500;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:16px;}
+.chart-wrap{position:relative;height:210px;}
+.empty-note{text-align:center;padding:36px;color:var(--dim);font-size:12px;}
+
+/* TAB */
+.tab-bar{display:flex;gap:2px;background:var(--surface2);border-radius:7px;padding:3px;margin-bottom:12px;width:fit-content;}
+.tab{padding:7px 18px;border-radius:5px;font-size:13px;background:none;border:none;color:var(--muted);cursor:pointer;}
+.tab.active{background:var(--surface);color:var(--text);}
+
+/* TABLE */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;overflow-x:auto;margin-bottom:13px;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px;}
+.table-card h3{font-size:13px;font-weight:500;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{text-align:left;padding:9px 11px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);font-size:13px;white-space:nowrap;}
+td{padding:9px 11px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:13px;white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.015);}
+.td-name{font-family:'Noto Sans JP',sans-serif!important;color:var(--text);}
+.td-label{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-family:'Noto Sans JP',sans-serif;}
+.total-row td{border-top:1px solid var(--border);color:var(--muted);}
+
+/* UNIT PRICE PANEL */
+#pricePanel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:13px;}
+#pricePanel h3{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;}
+.price-hint{font-size:13px;color:var(--dim);margin-bottom:14px;}
+.price-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:7px;}
+.price-row{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;}
+.price-name{flex:1;font-size:13px;color:var(--text);font-family:'Noto Sans JP',sans-serif;white-space:normal;word-break:break-all;line-height:1.5;min-width:0;}
+.price-svc{font-size:12px;padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;}
+.price-input{width:92px;flex-shrink:0;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:5px 9px;color:var(--text);font-size:13px;font-family:'DM Mono',monospace;text-align:right;outline:none;}
+.price-input:focus{border-color:var(--accent);}
+.price-yen{flex-shrink:0;font-size:13px;}
+.price-yen{font-size:11px;color:var(--muted);}
+.price-actions{display:flex;gap:8px;margin-top:12px;align-items:center;}
+.price-saved{font-size:11px;color:var(--g);opacity:0;transition:opacity .4s;}
+.price-saved.show{opacity:1;}
+.warning-card{background:#fff8e8;border:1px solid #f1c97a;border-radius:10px;padding:14px 16px;margin-bottom:13px;display:none;}
+.warning-title{font-size:12px;font-weight:700;color:#8a5b00;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+.warning-text{font-size:13px;color:#6b5a32;line-height:1.6;}
+.warning-list{margin-top:8px;font-size:13px;color:#6b5a32;display:flex;flex-wrap:wrap;gap:6px;}
+.warning-chip{background:#fff3cf;border:1px solid #f1c97a;border-radius:999px;padding:4px 10px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">📊</div>
+    <div>
+      <div class="logo-text">クリニック | 経営ダッシュボード</div>
+      <div class="logo-sub">Clinic Analytics</div>
+    </div>
+  </div>
+  <span id="lastUpdated"></span>
+</header>
+
+<!-- UPLOAD -->
+<div id="uploadSection">
+  <h2>月次CSVファイルを読み込む</h2>
+  <p>毎月エクスポートしたCSVを複数まとめてドロップできます</p>
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-icon">📂</div>
+    <h3>ここにCSVをドラッグ＆ドロップ</h3>
+    <p>クリックしてファイルを選択 &nbsp;·&nbsp; 複数月まとめて対応</p>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" multiple>
+  </div>
+  <div class="hint-row">
+    <span class="hint-tag">保険メニュー</span>
+    <span class="hint-tag">自費メニュー</span>
+    <span class="hint-tag">グループメニュー</span>
+    <span class="hint-tag">処置メニュー</span>
+    <span class="hint-tag">PT別件数</span>
+    <span class="hint-tag" style="border-color:#2980b9;color:#2980b9">📊 経理Excel（見込み収益）</span>
+    <span class="hint-tag" style="border-color:#8e44ad;color:#8e44ad">🏥 診察CSV（新患・再初診）</span>
+    <span class="hint-tag" style="border-color:#e74c3c;color:#e74c3c">🏥 新患CSV（横持ち形式）</span>
+  </div>
+  <div id="fileList"></div>
+  <div id="goBtn" style="display:none;margin-top:18px;">
+    <button class="btn-primary" onclick="buildDashboard()">ダッシュボードを表示 →</button>
+  </div>
+  <div style="margin-top:12px;">
+    <button class="btn-secondary btn-sm" onclick="loadSample()">📋 サンプルデータで試す</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="dash-header">
+    <div class="dash-title">経営サマリー</div>
+    <div class="dash-controls">
+      <select id="yearSel" onchange="renderAll()"></select>
+      <button class="btn-secondary btn-sm" onclick="togglePricePanel()">⚙ 単価設定</button>
+      <button class="btn-secondary btn-sm" onclick="resetUpload()">＋ ファイル追加</button>
+    </div>
+  </div>
+
+  <!-- UNIT PRICE PANEL (hidden by default) -->
+  <div id="pricePanel" style="display:none;">
+    <h3>単価設定</h3>
+    <p class="price-hint">メニューごとの単価を設定してください。件数 × 単価で売上を推計します。設定はブラウザに自動保存されます。</p>
+    <div class="price-grid" id="priceGrid"></div>
+    <div class="price-actions">
+      <button class="btn-primary btn-sm" onclick="savePrices()">保存して再計算</button>
+      <button class="btn-secondary btn-sm" onclick="togglePricePanel()">閉じる</button>
+      <span class="price-saved" id="priceSaved">✓ 保存しました</span>
+    </div>
+  </div>
+
+  <div class="warning-card" id="warningCard">
+    <div class="warning-title">要確認</div>
+    <div class="warning-text" id="warningText"></div>
+    <div class="warning-list" id="warningList"></div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- ① 月次売上 ／ ② 前年同月比 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>月次売上（見込み収益・サービス別）</h3>
+      <div class="chart-wrap"><canvas id="cRevSvc"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 id="yoyTitle">前年同月比（推計売上）</h3>
+      <div class="chart-wrap" id="wrapYoY"><canvas id="cYoY"></canvas><div id="emptyYoY" class="empty-note" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;">前年データがありません<br><small style="color:var(--dim)">前年のCSVも追加すると比較が表示されます</small></div></div>
+    </div>
+  </div>
+
+  <!-- ③ 新患数・再初診推移 ／ ④ 各Dr 月次新患数 -->
+  <div class="chart-grid" id="visChartRow" style="display:none;">
+    <div class="chart-card">
+      <h3>新患数 / 再初診数（月別詳細）</h3>
+      <div class="chart-wrap"><canvas id="cVisitor"></canvas></div>
+    </div>
+    <div class="chart-card" id="newPtCard" style="display:none;">
+      <h3>各Dr 月次新患数</h3>
+      <div class="chart-wrap"><canvas id="cNewPt"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ⑤ 曜日別見込み収益 ／ ⑥ 月次件数推移 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3 id="weekdayTitle">曜日別 見込み収益（平均）</h3>
+      <div class="chart-wrap" id="wrapWeekday"><canvas id="cWeekday"></canvas><div id="emptyWeekday" class="empty-note" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;">経理Excelを読み込むと表示されます</div></div>
+    </div>
+    <div class="chart-card">
+      <h3>月次件数推移（サービス別）</h3>
+      <div class="chart-wrap"><canvas id="cServices"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ⑦ PT別件数 ／ ⑧ 月次収入内訳 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>PT別件数（累計）</h3>
+      <div class="chart-wrap" id="wrapPT"><canvas id="cPT"></canvas><div id="emptyPT" class="empty-note" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;">PT別データなし</div></div>
+    </div>
+    <div class="chart-card" id="accChartRow" style="display:none;">
+      <h3>月次収入内訳（保険 / 自費 / 診療部門）</h3>
+      <div class="chart-wrap"><canvas id="cAccRevenue"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 補助チャート -->
+  <div class="chart-grid" id="auxChartRow" style="display:none;">
+    <div class="chart-card">
+      <h3>月次売上内訳 + 目標ライン</h3>
+      <div class="chart-wrap"><canvas id="cAccVsEst"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>新患 + 再初診（累計推移）</h3>
+      <div class="chart-wrap"><canvas id="cVisitorCum"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <h3>月別データ一覧</h3>
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchTab('summary',this)">サービス別</button>
+      <button class="tab" onclick="switchTab('pt',this)">PT別</button>
+      <button class="tab" onclick="switchTab('detail',this)">明細</button>
+    </div>
+    <div id="tableArea"></div>
+  </div>
+</div>
+
+<script>
+// ── SERVICE RULES ──────────────────────────────────────
+const SVC_RULES = [
+  {key:'rehab',   label:'リハビリ',     color:'#1e8449', patterns:['保険メニュー','保険処置','提携メニュー']},
+  {key:'workout', label:'自費診療', color:'#27ae60', patterns:['自費メニュー']},
+  {key:'pilates', label:'グループ診療',   color:'#8bc34a', patterns:['グループメニュー']},
+  {key:'eswt',    label:'処置',       color:'#2980b9', patterns:['処置メニュー']},
+  {key:'other',   label:'その他',       color:'#7f8c8d', patterns:[]},
+];
+function classifySvc(name){
+  for(const s of SVC_RULES) if(s.patterns.some(p=>name.includes(p))) return s.key;
+  return 'other';
+}
+function extractPT(name){
+  const m=name.match(/担当[:：]?\s*([^\s,，]+?PT)\s*$/)||name.match(/[\s　]([^\s　]+?PT)\s*$/);
+  return m?m[1].trim():null;
+}
+
+// ── UNIT PRICE STORE ───────────────────────────────────
+// priceMap: { menuKey: price }  menuKey = normalized menu name
+let priceMap = {};
+const LS_KEY = 'clinic_dash_prices_portfolio';
+
+function menuKey(name){
+  // Normalize: strip PT name / 担当表記 / extra spaces
+  return String(name||'')
+    .replace(/[\s　]*担当[:：]?\s*[^\s,，]+?PT\s*$/,'')
+    .replace(/[\s　]*[^\s,，]+?PT\s*$/,'')
+    .replace(/指名なし/g,'')
+    .replace(/[\s　]+/g,' ')
+    .trim();
+}
+
+function parseCSVLine(line){
+  const out=[];
+  let cur='';
+  let inQuotes=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){
+      if(inQuotes && line[i+1]==='"'){
+        cur+='"';
+        i++;
+      } else {
+        inQuotes=!inQuotes;
+      }
+    } else if(ch===',' && !inQuotes){
+      out.push(cur);
+      cur='';
+    } else {
+      cur+=ch;
+    }
+  }
+  out.push(cur);
+  return out.map(v=>String(v).trim());
+}
+
+function toInt(value){
+  if(value===null||value===undefined) return 0;
+  const cleaned=String(value).replace(/,/g,'').trim();
+  const n=parseInt(cleaned,10);
+  return Number.isFinite(n)?n:0;
+}
+
+function getUnpricedMenus(year){
+  const months=getMonths(year);
+  const map=new Map();
+  for(const m of months){
+    for(const r of m.rows){
+      const k=menuKey(r.name);
+      if(getPrice(r.name)===0){
+        map.set(k,(map.get(k)||0)+r.count);
+      }
+    }
+  }
+  return [...map.entries()].sort((a,b)=>b[1]-a[1]);
+}
+
+
+function extractDoctorFromNewPtName(name){
+  const s=(name||'').replace(/　/g,' ').trim();
+  const base=s
+    .replace(/^自費\s*/,'')
+    .replace(/^初診(?:\([^)]*\))?\s*/,'')
+    .replace(/^再初診\s*/,'')
+    .trim();
+  return base||'指名なし';
+}
+
+function loadPrices(){
+  try{ const s=localStorage.getItem(LS_KEY); if(s) priceMap=JSON.parse(s); }catch(e){}
+}
+function savePricesToLS(){
+  // Read from inputs
+  document.querySelectorAll('.price-input').forEach(inp=>{
+    priceMap[inp.dataset.key]=parseInt(inp.value)||0;
+  });
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(priceMap)); }catch(e){}
+  const el=document.getElementById('priceSaved');
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2000);
+  renderAll();
+}
+
+// Default prices (¥)
+const DEFAULT_PRICES = {
+  // リハビリ
+  '保険メニューA':              0,
+  '保険メニューB':              0,
+  '保険メニューC':              0,
+  '保険処置A':    0,
+  '保険処置B':        0,
+  // 自費診療
+  '自費メニューA':    0,
+  '自費メニューB':   0,
+  '自費メニューC':   0,
+  '自費メニューD': 0,
+  '自費メニューE': 0,
+  // グループ診療
+  'グループメニューA': 0,
+  'グループメニューB': 0,
+  'グループメニューC': 0,
+  'グループメニューD':  0,
+  // 処置
+  '処置メニューA': 0,
+  // 2F・その他
+  '提携メニューA':  0,
+  '提携メニューB': 0,
+  '提携メニューC':   0,
+  '提携メニューD':           0,
+};
+
+function getPrice(rawName){
+  const k = menuKey(rawName);
+  if(priceMap[k]!==undefined) return priceMap[k];
+  // Try default
+  for(const [dk,dv] of Object.entries(DEFAULT_PRICES)){
+    if(k.includes(dk)||dk.includes(k)) return dv;
+  }
+  return 0;
+}
+
+function estimateRevenue(row){
+  return row.count * getPrice(row.name);
+}
+
+// ── DATA STORE ─────────────────────────────────────────
+const store = { monthData:{}, accounting:{}, newPatient:{}, accountingDaily:{} }; // newPatient: key->{year,month,key,count}
+let currentTab = 'summary';
+const charts = {};
+
+// ── CSV PARSER ─────────────────────────────────────────
+function parseClinicCSV(text){
+  text=text.replace(/^\uFEFF/,'');
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) return null;
+  const header=parseCSVLine(lines[0]);
+  const ym=header[1]?.trim().match(/(\d{4})-(\d{2})/);
+  if(!ym) return null;
+  const year=parseInt(ym[1]), month=parseInt(ym[2]);
+  const key=`${year}-${String(month).padStart(2,'0')}`;
+  const rows=[];
+  for(let i=2;i<lines.length;i++){
+    const cols=parseCSVLine(lines[i]);
+    const name=cols[0]?.trim();
+    if(!name||name==='ブロック') continue;
+    const count=toInt(cols[1]);
+    const minutes=toInt(cols[2]);
+    const csvRevenue=toInt(cols[3]);
+    rows.push({name, service:classifySvc(name), pt:extractPT(name), count, minutes, csvRevenue});
+  }
+  return {year,month,key,rows};
+}
+
+// ── UPLOAD ─────────────────────────────────────────────
+const dropZone=document.getElementById('dropZone');
+const fileInput=document.getElementById('fileInput');
+dropZone.addEventListener('click',()=>fileInput.click());
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('over');handleFiles([...e.dataTransfer.files]);});
+fileInput.addEventListener('change',()=>handleFiles([...fileInput.files]));
+
+async function handleFiles(files){
+  for(const f of files){
+    if(!/\.(csv|xlsx|xls)$/i.test(f.name)) continue;
+    if(/\.(xlsx|xls)$/i.test(f.name)){
+      await handleExcel(f);
+    } else {
+      const text=await f.text();
+      // 新患CSVか予約CSVか自動判定
+      if(isNewPatientCSV(text)){
+        const results=parseNewPatientCSV(text);
+        results.forEach(r=>{ store.newPatient[r.key]=r; });
+      } else {
+        const parsed=parseClinicCSV(text);
+        if(!parsed){alert(`${f.name}: CSV形式を認識できませんでした`);continue;}
+        store.monthData[parsed.key]=parsed;
+      }
+    }
+  }
+  updateFileChips();
+}
+
+// 新患CSVの判定（横持ち複数月 or 縦型1ヶ月どちらも対応）
+function isNewPatientCSV(text){
+  text=text.replace(/^\uFEFF/,'');
+  const lines=text.split(/\r?\n/);
+  // 横持ち: 1行目に複数の年月
+  const ymMatches=(lines[0]||'').match(/\d{4}-\d{2}/g)||[];
+  if(ymMatches.length>=2) return true;
+  // 縦型: データ行に「初診」「再初診」で始まる行がある
+  for(let i=2;i<Math.min(lines.length,20);i++){
+    const name=(parseCSVLine(lines[i])[0]||'').trim();
+    if(name.startsWith('初診')||name.startsWith('再初診')) return true;
+  }
+  return false;
+}
+
+// 新患CSV（横持ち・縦型 両対応）パーサー
+function parseNewPatientCSV(text){
+  text=text.replace(/^﻿/,'');
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<3) return [];
+  const header=parseCSVLine(lines[0]);
+  const ymMatches=(lines[0]).match(/\d{4}-\d{2}/g)||[];
+  const isHorizontal=ymMatches.length>=2;
+
+  if(isHorizontal){
+    const monthCols=[];
+    header.forEach((h,i)=>{
+      const m=(h||'').trim().match(/(\d{4})-(\d{2})/);
+      if(m) monthCols.push({year:parseInt(m[1]),month:parseInt(m[2]),col:i*2-1});
+    });
+    if(!monthCols.length) return [];
+    const agg={};
+    monthCols.forEach(mc=>{
+      const key=`${mc.year}-${String(mc.month).padStart(2,'0')}`;
+      agg[key]={year:mc.year,month:mc.month,key,shinsin:0,saishoshin:0,doctors:{}};
+    });
+
+    for(let i=2;i<lines.length;i++){
+      const cols=parseCSVLine(lines[i]);
+      const name=(cols[0]||'').trim();
+      const isShin=name.startsWith('初診')&&!name.includes('再')&&!name.includes('自費');
+      const isSai=name.startsWith('再初診');
+      if(!isShin&&!isSai) continue;
+      monthCols.forEach(mc=>{
+        const key=`${mc.year}-${String(mc.month).padStart(2,'0')}`;
+        const v=toInt(cols[mc.col]);
+        if(isShin){
+          agg[key].shinsin+=v;
+          const doctor=extractDoctorFromNewPtName(name);
+          agg[key].doctors[doctor]=(agg[key].doctors[doctor]||0)+v;
+        }else{
+          agg[key].saishoshin+=v;
+        }
+      });
+    }
+    return Object.values(agg).filter(r=>r.shinsin>0||r.saishoshin>0);
+  } else {
+    const ym=header[1]?.trim().match(/(\d{4})-(\d{2})/);
+    if(!ym) return [];
+    const year=parseInt(ym[1]),month=parseInt(ym[2]);
+    const key=`${year}-${String(month).padStart(2,'0')}`;
+    let shinsin=0,saishoshin=0;
+    const doctors={};
+    for(let i=2;i<lines.length;i++){
+      const cols=parseCSVLine(lines[i]);
+      const name=(cols[0]||'').trim();
+      const isShin=name.startsWith('初診')&&!name.includes('再')&&!name.includes('自費');
+      const isSai=name.startsWith('再初診');
+      if(!isShin&&!isSai) continue;
+      const v=toInt(cols[1]);
+      if(isShin){
+        shinsin+=v;
+        const doctor=extractDoctorFromNewPtName(name);
+        doctors[doctor]=(doctors[doctor]||0)+v;
+      } else {
+        saishoshin+=v;
+      }
+    }
+    if(shinsin===0&&saishoshin===0) return [];
+    return [{year,month,key,shinsin,saishoshin,doctors}];
+  }
+}
+
+async function handleExcel(file){
+  return new Promise((resolve)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:'binary',cellDates:false});
+        let count=0;
+        for(const sheetName of wb.SheetNames){
+          const ws=wb.Sheets[sheetName];
+          const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
+          const parsed=parseAccountingExcel(rows);
+          if(parsed){ store.accounting[parsed.key]=parsed; count++; }
+        }
+        if(count===0) alert(`${file.name}: 経理ファイルの形式を認識できませんでした`);
+        resolve();
+      }catch(err){alert(`${file.name}: 読み込みエラー: ${err.message}`);resolve();}
+    };
+    reader.readAsBinaryString(file);
+  });
+}
+
+function excelSerialToYM(serial){
+  if(!serial||typeof serial!=='number') return null;
+  const d=new Date((serial-25569)*86400*1000);
+  return {year:d.getUTCFullYear(), month:d.getUTCMonth()+1};
+}
+
+function parseAccountingExcel(rows){
+  if(!rows||rows.length<36) return null;
+  const ym=excelSerialToYM(rows[0]?.[0]);
+  if(!ym) return null;
+  const {year,month}=ym;
+  const key=`${year}-${String(month).padStart(2,'0')}`;
+  const sumRow=rows[35];
+  if(!sumRow) return null;
+  const n=v=>typeof v==='number'?v:0;
+  const totalRevenue    =n(sumRow[2])||n(sumRow[6]);
+  const insuranceRevenue=n(sumRow[7]);
+  const selfPayRevenue  =n(sumRow[9]);
+  if(totalRevenue===0) return null;
+
+  // 日次データも保存（曜日別グラフ用）
+  if(!store.accountingDaily) store.accountingDaily={};
+  const days=[];
+  for(let i=4;i<=34&&i<rows.length;i++){
+    const row=rows[i];
+    if(!row||typeof row[0]!=='number') continue;
+    const rev=n(row[2])||n(row[6]); // C列優先
+    if(rev===0) continue;
+    days.push({serial:row[0], revenue:rev, year, month});
+  }
+  store.accountingDaily[key]={year,month,key,days};
+
+  return {year,month,key,totalRevenue,insuranceRevenue,selfPayRevenue};
+}
+
+function updateFileChips(){
+  const csvKeys=Object.keys(store.monthData).sort();
+  const xlsKeys=Object.keys(store.accounting).sort();
+  const npKeys =[...new Set(Object.keys(store.newPatient))].sort();
+  const chips=[
+    ...csvKeys.map(k=>{
+      const d=store.monthData[k];
+      return `<div class="file-chip"><div class="chip-dot" style="background:#1e8449"></div><span>${d.year}年${d.month}月 予約</span><button class="chip-del" onclick="removeCSV('${k}')">×</button></div>`;
+    }),
+    ...xlsKeys.map(k=>{
+      const d=store.accounting[k];
+      return `<div class="file-chip"><div class="chip-dot" style="background:#2980b9"></div><span>${d.year}年${d.month}月 経理</span><button class="chip-del" onclick="removeXLS('${k}')">×</button></div>`;
+    }),
+    ...(npKeys.length?[`<div class="file-chip"><div class="chip-dot" style="background:#e74c3c"></div><span>新患データ ${npKeys.length}ヶ月分</span><button class="chip-del" onclick="removeNP()">×</button></div>`]:[]),
+  ];
+  document.getElementById('fileList').innerHTML=chips.join('');
+  document.getElementById('goBtn').style.display=(csvKeys.length+xlsKeys.length+npKeys.length)?'block':'none';
+}
+function removeCSV(key){delete store.monthData[key];updateFileChips();}
+function removeXLS(key){delete store.accounting[key];updateFileChips();}
+function removeNP(){store.newPatient={};updateFileChips();}
+
+function buildDashboard(){
+  loadPrices();
+  buildPriceGrid();
+  document.getElementById('uploadSection').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  populateYearSel();
+  renderAll();
+  document.getElementById('lastUpdated').textContent='更新: '+new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+function resetUpload(){
+  document.getElementById('uploadSection').style.display='block';
+  document.getElementById('uploadSection').scrollIntoView({behavior:'smooth'});
+}
+
+// ── PRICE PANEL ────────────────────────────────────────
+function buildPriceGrid(){
+  // Collect all unique menu keys from data
+  const menuSet = new Map(); // key -> {name, svc}
+  for(const m of Object.values(store.monthData)){
+    for(const r of m.rows){
+      const k=menuKey(r.name);
+      if(!menuSet.has(k)) menuSet.set(k,{name:k,svc:r.service});
+    }
+  }
+  // Sort by service
+  const svcOrder={rehab:0,workout:1,pilates:2,eswt:3,other:4};
+  const sorted=[...menuSet.entries()].sort((a,b)=>(svcOrder[a[1].svc]||99)-(svcOrder[b[1].svc]||99));
+
+  document.getElementById('priceGrid').innerHTML=sorted.map(([k,v])=>{
+    const svc=SVC_RULES.find(s=>s.key===v.svc)||SVC_RULES[SVC_RULES.length-1];
+    const price=priceMap[k]!==undefined?priceMap[k]:(getPrice(k)||0);
+    return `<div class="price-row">
+      <span class="price-svc" style="background:${svc.color}22;color:${svc.color}">${svc.label}</span>
+      <span class="price-name" title="${k}">${k}</span>
+      <input class="price-input" type="number" data-key="${k}" value="${price}" min="0" step="100">
+      <span class="price-yen">円</span>
+    </div>`;
+  }).join('');
+}
+
+function togglePricePanel(){
+  const p=document.getElementById('pricePanel');
+  p.style.display=p.style.display==='none'?'block':'none';
+}
+
+function savePrices(){
+  savePricesToLS();
+}
+
+// ── YEAR SELECT ────────────────────────────────────────
+function populateYearSel(){
+  const years=[...new Set([...Object.values(store.monthData),...Object.values(store.accounting),...Object.values(store.newPatient)].map(d=>d.year))].sort();
+  const sel=document.getElementById('yearSel');
+  const prev=parseInt(sel.value);
+  sel.innerHTML=years.map(y=>`<option value="${y}">${y}年</option>`).join('');
+  // 前回選択年があればそれを維持、なければ最新年を選択
+  if(prev&&years.includes(prev)) sel.value=prev;
+  else sel.value=years[years.length-1];
+}
+function selectedYear(){
+  const sel=document.getElementById('yearSel');
+  const y=parseInt(sel?.value,10);
+  return Number.isFinite(y)?y:null;
+}
+
+// ── AGGREGATION ────────────────────────────────────────
+function getMonths(year){return Object.values(store.monthData).filter(d=>d.year===year).sort((a,b)=>a.month-b.month);}
+function getPrev(year){return getMonths(year-1);}
+function getAccounting(year){return Object.values(store.accounting).filter(d=>d.year===year).sort((a,b)=>a.month-b.month);}
+function getVisitors(year){return Object.values(store.newPatient).filter(d=>d.year===year).sort((a,b)=>a.month-b.month);}
+function getNewPatient(year){return Object.values(store.newPatient).filter(d=>d.year===year).sort((a,b)=>a.month-b.month);}
+function getPrevNewPt(year){return getNewPatient(year-1);}
+function sumField(rows,field){return rows.reduce((s,r)=>s+(r[field]||0),0);}
+
+function monthRevenue(m){
+  return m.rows.reduce((s,r)=>s+estimateRevenue(r),0);
+}
+function monthRevenueBySvc(m,svc){
+  return m.rows.filter(r=>r.service===svc).reduce((s,r)=>s+estimateRevenue(r),0);
+}
+function monthCount(m){return sumField(m.rows,'count');}
+function monthCountBySvc(m,svc){return m.rows.filter(r=>r.service===svc).reduce((s,r)=>s+r.count,0);}
+
+function mArr(months,fn){
+  return Array.from({length:12},(_,i)=>{
+    const m=months.find(d=>d.month===i+1);
+    return m?fn(m):null;
+  });
+}
+
+const MLABELS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+function killChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function baseOpts(yCb){
+  return{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,labels:{color:'#7f8c8d',font:{size:10},boxWidth:8,padding:10}},tooltip:{backgroundColor:'#ffffff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',borderColor:'#c8dfc8',borderWidth:1,padding:8}},
+    scales:{
+      x:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#7f8c8d',font:{size:10}}},
+      y:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#7f8c8d',font:{size:10},callback:yCb||undefined}}
+    }
+  };
+}
+
+// ── RENDER ALL ─────────────────────────────────────────
+function renderAll(){
+  const yr=selectedYear();
+  if(!yr){
+    document.getElementById('kpiGrid').innerHTML='';
+    document.getElementById('tableArea').innerHTML='<div class="empty-note">表示できる年データがありません</div>';
+    document.getElementById('accChartRow').style.display='none';
+    document.getElementById('auxChartRow').style.display='none';
+    document.getElementById('newPtCard').style.display='none';
+    document.getElementById('visChartRow').style.display='none';
+    renderWarnings(null);
+    return;
+  }
+  const curr=getMonths(yr);
+  const prev=getPrev(yr);
+  const accList=getAccounting(yr);
+  renderWarnings(yr);
+  renderKPI(curr,prev);
+  renderChartRevSvc(curr,yr,accList);
+  renderChartYoY(curr,prev);
+  renderChartServices(curr);
+  renderChartWeekday(yr);
+  renderChartPT(curr);
+  renderChartAccRevenue(accList,curr);
+  renderChartAccVsEst(curr,accList);
+  document.getElementById('accChartRow').style.display=accList.length?'':'none';
+  const npList=getNewPatient(yr);
+  renderChartNewPt(npList,getPrevNewPt(yr));
+  document.getElementById('newPtCard').style.display=npList.length?'':'none';
+  renderChartVisitor(npList);
+  renderChartVisitorCum(npList);
+  document.getElementById('visChartRow').style.display=npList.length?'':'none';
+  document.getElementById('auxChartRow').style.display=(accList.length||npList.length)?'':'none';
+  // YoYタイトルを経理/推計で切り替え
+  const accPrev=getAccounting(yr-1);
+  const titleEl=document.getElementById('yoyTitle');
+  if(titleEl) titleEl.textContent=accList.length>0&&accPrev.length>0?'前年同月比（見込み収益ベース）':'前年同月比（推計売上）';
+  renderTable();
+}
+
+function renderWarnings(year){
+  const card=document.getElementById('warningCard');
+  const textEl=document.getElementById('warningText');
+  const listEl=document.getElementById('warningList');
+  if(!year){ card.style.display='none'; return; }
+  const missing=getUnpricedMenus(year);
+  if(!missing.length){
+    card.style.display='none';
+    listEl.innerHTML='';
+    textEl.textContent='';
+    return;
+  }
+  card.style.display='block';
+  textEl.textContent=`単価未設定のメニューが ${missing.length} 件あります。未設定メニューは売上 0 円として集計されます。`;
+  listEl.innerHTML=missing.slice(0,8).map(([name,count])=>`<span class="warning-chip">${name} (${fmt(count)}件)</span>`).join('');
+}
+
+// KPI
+function renderKPI(curr,prev){
+  const totalRev  =curr.reduce((s,m)=>s+monthRevenue(m),0);
+  const prevRev  =prev.reduce((s,m)=>s+monthRevenue(m),0);
+  const totalCnt =curr.reduce((s,m)=>s+monthCount(m),0);
+  const prevCnt  =prev.reduce((s,m)=>s+monthCount(m),0);
+  const rehabRev  =curr.reduce((s,m)=>s+monthRevenueBySvc(m,'rehab'),0);
+  const wkRev     =curr.reduce((s,m)=>s+monthRevenueBySvc(m,'workout'),0);
+  const pilRev    =curr.reduce((s,m)=>s+monthRevenueBySvc(m,'pilates'),0);
+  const eswtRev   =curr.reduce((s,m)=>s+monthRevenueBySvc(m,'eswt'),0);
+
+  const revDiff =prevRev ?((totalRev-prevRev)/prevRev*100).toFixed(1):null;
+  const cntDiff =prevCnt ?((totalCnt-prevCnt)/prevCnt*100).toFixed(1):null;
+
+  const yr=selectedYear();
+  const accList=getAccounting(yr);
+  const hasAcc=accList.length>0;
+  const actualTotal    =accList.reduce((s,a)=>s+a.totalRevenue,0);
+  const actualInsurance=accList.reduce((s,a)=>s+a.insuranceRevenue,0);
+  const actualSelfPay  =accList.reduce((s,a)=>s+a.selfPayRevenue,0);
+  const npList=getNewPatient(yr);
+  const totalNewPt=npList.reduce((s,d)=>s+(d.shinsin!=null?d.shinsin:(d.count||0)),0);
+  const prevNpList=getNewPatient(yr-1);
+  const prevNewPt=prevNpList.reduce((s,d)=>s+(d.shinsin!=null?d.shinsin:(d.count||0)),0);
+  const npDiff=prevNewPt?((totalNewPt-prevNewPt)/prevNewPt*100).toFixed(1):null;
+  const cards=[
+    {label:hasAcc?'見込み収益（累計）':'推計売上（累計）',
+     value:'¥'+fmt(hasAcc?actualTotal:totalRev),
+     sub:hasAcc?`経理 ${accList.length}ヶ月分`:diffStr(revDiff,'前年比'), c:'c0'},
+    {label:'総施術件数',value:fmt(totalCnt)+'件',sub:diffStr(cntDiff,'前年比'),c:'c1'},
+    {label:'新患数',value:totalNewPt?fmt(totalNewPt)+'名':'—',sub:totalNewPt?diffStr(npDiff,'前年比'):`${curr.length}ヶ月累計`,c:'c2'},
+    {label:hasAcc?'保険収入（実績）':'リハビリ推計売上',
+     value:'¥'+fmt(hasAcc?actualInsurance:rehabRev),
+     sub:`${hasAcc?accList.length:curr.length}ヶ月累計`,c:'c3'},
+    {label:'グループ診療推計売上',value:'¥'+fmt(pilRev),sub:`${curr.length}ヶ月累計`,c:'c4'},
+    {label:'処置推計売上',value:'¥'+fmt(eswtRev),sub:`${curr.length}ヶ月累計`,c:'c5'},
+  ];
+  document.getElementById('kpiGrid').innerHTML=cards.map(k=>`
+    <div class="kpi ${k.c}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+function fmt(n){return Math.round(n||0).toLocaleString('ja-JP');}
+function diffStr(d,label){
+  if(d===null) return `<span class="neu">${label}データなし</span>`;
+  const s=d>=0?'▲':'▼';
+  return `<span class="${d>=0?'up':'dn'}">${s} ${Math.abs(d)}% (${label})</span>`;
+}
+
+// Chart: Revenue by service (stacked bar)
+function renderChartRevSvc(curr,yr,accList){
+  killChart('revsvc');
+  const svcs=SVC_RULES.filter(s=>s.key!=='other');
+  const datasets=svcs.map(svc=>({
+    label:svc.label,
+    data:mArr(curr,m=>monthRevenueBySvc(m,svc.key)),
+    backgroundColor:svc.color+'dd',
+    borderColor:svc.color,
+    borderWidth:1,
+    borderRadius:2,
+    stack:'s',
+  })).filter(ds=>ds.data.some(v=>v>0));
+
+  // 診療部門 = 見込み収益(C列) − PT推計売上
+  if(accList&&accList.length>0){
+    const doctorData=Array.from({length:12},(_,i)=>{
+      const a=accList.find(d=>d.month===i+1);
+      const m=curr.find(d=>d.month===i+1);
+      if(!a) return null;
+      const diff=a.totalRevenue-(m?monthRevenue(m):0);
+      return diff>0?diff:0;
+    });
+    if(doctorData.some(v=>v>0)){
+      datasets.push({label:'診療部門',data:doctorData,
+        backgroundColor:'rgba(41,128,185,.75)',borderColor:'#2980b9',
+        borderWidth:1,borderRadius:2,stack:'s'});
+    }
+  }
+
+  // 合計はツールチップで表示
+
+  const ctx=document.getElementById('cRevSvc').getContext('2d');
+  charts.revsvc=new Chart(ctx,{
+    type:'bar',
+    data:{labels:MLABELS,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:true,labels:{color:'#1a3a20',font:{size:12},boxWidth:10,padding:12}},
+        tooltip:{
+          backgroundColor:'#fff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',
+          borderColor:'#c8dfc8',borderWidth:1,padding:9,
+          callbacks:{
+            label:c=>`${c.dataset.label}: ¥${fmt(c.raw)}`,
+            afterBody:items=>{
+              if(!items.length) return [];
+              const chart=items[0].chart;
+              const idx=items[0].dataIndex;
+              // 全データセットをその月インデックスで合計
+              let total=0;
+              chart.data.datasets.forEach((ds,di)=>{
+                const meta=chart.getDatasetMeta(di);
+                if(meta.hidden) return;
+                const v=ds.data[idx];
+                if(typeof v==='number'&&!isNaN(v)) total+=v;
+              });
+              return total?['', `月合計: ¥${fmt(total)}`]:[];
+            },
+            labelTextColor:()=>'#2c4a30',
+          }
+        }
+      },
+      scales:{
+        x:{stacked:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13}}},
+        y:{stacked:true,grid:{color:'rgba(100,160,100,.3)'},
+          ticks:{color:'#2c4a30',font:{size:13},callback:v=>'¥'+Math.round(v/10000)+'万'}}
+      }
+    }
+  });
+}
+
+function renderChartYoY(curr,prev){
+  killChart('yoy');
+  const empty=document.getElementById('emptyYoY');
+  const canvas=document.getElementById('cYoY');
+  const yr=selectedYear();
+  const accCurr=getAccounting(yr);
+  const accPrev=getAccounting(yr-1);
+  // 経理データがあれば経理ベース、なければCSV推計ベースで前年比
+  const hasBothAcc=accCurr.length>0&&accPrev.length>0;
+  const hasBothCsv=curr.length>0&&prev.length>0;
+  if(!hasBothAcc&&!hasBothCsv){
+    if(canvas) canvas.style.opacity='0';
+    if(empty) empty.style.display='block';
+    return;
+  }
+  if(canvas) canvas.style.opacity='1';
+  if(empty) empty.style.display='none';
+  const data=Array.from({length:12},(_,i)=>{
+    if(hasBothAcc){
+      const c=accCurr.find(d=>d.month===i+1);
+      const p=accPrev.find(d=>d.month===i+1);
+      if(!c||!p||!p.totalRevenue) return null;
+      return +((c.totalRevenue-p.totalRevenue)/p.totalRevenue*100).toFixed(1);
+    }
+    const c=curr.find(d=>d.month===i+1);
+    const p=prev.find(d=>d.month===i+1);
+    if(!c||!p) return null;
+    const cr=monthRevenue(c),pr=monthRevenue(p);
+    if(!pr) return null;
+    return +((cr-pr)/pr*100).toFixed(1);
+  });
+  const ctx=document.getElementById('cYoY').getContext('2d');
+  charts.yoy=new Chart(ctx,{
+    type:'bar',
+    data:{labels:MLABELS,datasets:[{label:'前年比(%)',data,backgroundColor:data.map(v=>v===null?'transparent':v>=0?'rgba(30,132,73,.85)':'rgba(192,57,43,.85)'),borderRadius:3}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#ffffff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',borderColor:'#c8dfc8',borderWidth:1,callbacks:{label:ctx=>ctx.raw+'%'}}},
+      scales:{x:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#7f8c8d',font:{size:10}}},y:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#7f8c8d',font:{size:10},callback:v=>v+'%'}}}
+    }
+  });
+}
+
+// Chart: Count by service
+function renderChartServices(curr){
+  killChart('svc');
+  const svcs=SVC_RULES.filter(s=>s.key!=='other');
+  const datasets=svcs.map(svc=>({
+    label:svc.label,
+    data:mArr(curr,m=>monthCountBySvc(m,svc.key)),
+    borderColor:svc.color,backgroundColor:svc.color+'22',
+    tension:.35,fill:false,pointBackgroundColor:svc.color,pointRadius:3
+  })).filter(ds=>ds.data.some(v=>v>0));
+  const ctx=document.getElementById('cServices').getContext('2d');
+  charts.svc=new Chart(ctx,{type:'line',data:{labels:MLABELS,datasets},options:baseOpts(v=>v+'件')});
+}
+
+// Chart: PT bar
+function renderChartPT(curr){
+  killChart('pt');
+  const emptyPT=document.getElementById('emptyPT');
+  const canvasPT=document.getElementById('cPT');
+  const map={};
+  for(const m of curr) for(const r of m.rows){if(!r.pt)continue;map[r.pt]=(map[r.pt]||0)+r.count;}
+  const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(!sorted.length){if(canvasPT)canvasPT.style.opacity='0';if(emptyPT)emptyPT.style.display='block';return;}
+  if(canvasPT)canvasPT.style.opacity='1';if(emptyPT)emptyPT.style.display='none';
+  const ctx=document.getElementById('cPT').getContext('2d');
+  charts.pt=new Chart(ctx,{
+    type:'bar',
+    data:{labels:sorted.map(e=>e[0]),datasets:[{label:'件数',data:sorted.map(e=>e[1]),backgroundColor:'rgba(45,122,79,.75)',borderColor:'#2d7a4f',borderWidth:1,borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#ffffff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',borderColor:'#c8dfc8',borderWidth:1}},
+      scales:{x:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#7f8c8d',font:{size:10},callback:v=>v+'件'}},y:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#7f8c8d',font:{size:10}}}}
+    }
+  });
+}
+
+// ── TABLES ─────────────────────────────────────────────
+function switchTab(tab,el){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+function renderTable(){
+  const yr=selectedYear();
+  const curr=getMonths(yr);
+  if(currentTab==='summary') renderSummaryTable(curr);
+  else if(currentTab==='pt') renderPTTable(curr);
+  else renderDetailTable(curr);
+}
+
+function renderSummaryTable(curr){
+  if(!curr.length && !getAccounting(selectedYear()).length){
+    document.getElementById('tableArea').innerHTML='<div class="empty-note">この年の月次データがありません</div>';
+    return;
+  }
+  const yr=selectedYear();
+  const accList=getAccounting(yr);
+  const hasAcc=accList.length>0;
+  const svcs=SVC_RULES.filter(s=>s.key!=='other');
+  const accCols=hasAcc?'<th style="color:#2980b9">見込み収益</th><th>保険</th><th>自費</th>':'';
+  let html=`<table><thead><tr><th>月</th>${svcs.map(s=>`<th>${s.label}</th>`).join('')}<th>合計件数</th><th>PT推計売上</th>${accCols}</tr></thead><tbody>`;
+  let totCnt=0,totRev=0,totAct=0,totIns=0,totSelf=0;
+  const svcTotals=svcs.map(()=>0);
+  for(let m=1;m<=12;m++){
+    const d=curr.find(r=>r.month===m);
+    const acc=accList.find(a=>a.month===m);
+    if(!d&&!acc) continue;
+    const cnt=d?monthCount(d):0,rev=d?monthRevenue(d):0;
+    totCnt+=cnt; totRev+=rev;
+    html+=`<tr><td class="td-name">${m}月</td>`;
+    svcs.forEach((svc,i)=>{ const sc=d?monthCountBySvc(d,svc.key):0; svcTotals[i]+=sc; html+=`<td>${sc||'—'}</td>`; });
+    html+=`<td><b>${cnt?fmt(cnt):'—'}</b></td><td style="color:var(--g)">${rev?'¥'+fmt(rev):'—'}</td>`;
+    if(hasAcc){
+      totAct+=acc?.totalRevenue||0; totIns+=acc?.insuranceRevenue||0; totSelf+=acc?.selfPayRevenue||0;
+      html+=`<td style="color:#2980b9;font-weight:500">${acc?'¥'+fmt(acc.totalRevenue):'—'}</td>`;
+      html+=`<td style="color:var(--muted)">${acc?'¥'+fmt(acc.insuranceRevenue):'—'}</td>`;
+      html+=`<td style="color:var(--muted)">${acc?'¥'+fmt(acc.selfPayRevenue):'—'}</td>`;
+    }
+    html+=`</tr>`;
+  }
+  html+=`<tr class="total-row"><td class="td-name">合計</td>`;
+  svcTotals.forEach(c=>{ html+=`<td>${fmt(c)}</td>`; });
+  html+=`<td><b>${fmt(totCnt)}</b></td><td style="color:var(--g)"><b>¥${fmt(totRev)}</b></td>`;
+  if(hasAcc) html+=`<td style="color:#2980b9;font-weight:500">¥${fmt(totAct)}</td><td style="color:var(--muted)">¥${fmt(totIns)}</td><td style="color:var(--muted)">¥${fmt(totSelf)}</td>`;
+  html+=`</tr></tbody></table>`;
+  document.getElementById('tableArea').innerHTML=html;
+}
+
+function renderPTTable(curr){
+  const ptMap={};
+  for(const m of curr) for(const r of m.rows){
+    if(!r.pt) continue;
+    if(!ptMap[r.pt]) ptMap[r.pt]={count:0,rev:0};
+    ptMap[r.pt].count+=r.count;
+    ptMap[r.pt].rev+=estimateRevenue(r);
+  }
+  const sorted=Object.entries(ptMap).sort((a,b)=>b[1].count-a[1].count);
+  let html=`<table><thead><tr><th>PT名</th><th>件数</th><th>推計売上</th></tr></thead><tbody>`;
+  for(const[pt,v] of sorted){
+    html+=`<tr><td class="td-name">${pt}</td><td>${fmt(v.count)}</td><td style="color:var(--o)">¥${fmt(v.rev)}</td></tr>`;
+  }
+  html+='</tbody></table>';
+  document.getElementById('tableArea').innerHTML=html;
+}
+
+function renderDetailTable(curr){
+  let html=`<table><thead><tr><th>月</th><th>種別</th><th>メニュー名</th><th>PT</th><th>件数</th><th>単価</th><th>推計売上</th></tr></thead><tbody>`;
+  for(const d of curr){
+    for(const r of d.rows){
+      const svc=SVC_RULES.find(s=>s.key===r.service)||SVC_RULES[SVC_RULES.length-1];
+      const price=getPrice(r.name);
+      const rev=estimateRevenue(r);
+      html+=`<tr>
+        <td class="td-name">${d.month}月</td>
+        <td><span class="td-label" style="background:${svc.color}22;color:${svc.color}">${svc.label}</span></td>
+        <td class="td-name" style="max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${r.name}">${r.name}</td>
+        <td class="td-name">${r.pt||'—'}</td>
+        <td>${r.count}</td>
+        <td style="color:var(--muted)">${price?'¥'+fmt(price):'未設定'}</td>
+        <td style="color:var(--o)">${price?'¥'+fmt(rev):'未設定'}</td>
+      </tr>`;
+    }
+  }
+  html+='</tbody></table>';
+  document.getElementById('tableArea').innerHTML=html;
+}
+
+// ── SAMPLE DATA ────────────────────────────────────────
+
+// ── 実収入内訳グラフ ────────────────────────────────
+function renderChartAccRevenue(accList,curr){
+  killChart('accrev');
+  if(!accList.length) return;
+  const insData  =Array.from({length:12},(_,i)=>{const a=accList.find(d=>d.month===i+1);return a?a.insuranceRevenue:null;});
+  const selfData =Array.from({length:12},(_,i)=>{const a=accList.find(d=>d.month===i+1);return a?a.selfPayRevenue:null;});
+  const docData  =Array.from({length:12},(_,i)=>{
+    const a=accList.find(d=>d.month===i+1);
+    const m=curr.find(d=>d.month===i+1);
+    if(!a) return null;
+    const diff=a.totalRevenue-(m?monthRevenue(m):0);
+    return diff>0?diff:0;
+  });
+  const ctx=document.getElementById('cAccRevenue').getContext('2d');
+  charts.accrev=new Chart(ctx,{
+    type:'bar',
+    data:{labels:MLABELS,datasets:[
+      {label:'保険収入（患者負担）',data:insData, backgroundColor:'rgba(45,122,79,.75)',borderColor:'#2d7a4f',borderWidth:1,borderRadius:3,stack:'s'},
+      {label:'自費収入',            data:selfData,backgroundColor:'rgba(41,128,185,.75)',borderColor:'#2980b9',borderWidth:1,borderRadius:3,stack:'s'},
+      {label:'診療部門',            data:docData, backgroundColor:'rgba(41,128,185,.65)',borderColor:'#2980b9',borderWidth:1,borderRadius:3,stack:'s'},
+    ].filter(ds=>ds.data.some(v=>v>0))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'#1a3a20',font:{size:13},boxWidth:11,padding:13}},
+        tooltip:{backgroundColor:'#fff',titleColor:'#1e2e22',bodyColor:'#6e8a70',borderColor:'#dce8d6',borderWidth:1,padding:8,callbacks:{label:c=>`${c.dataset.label}: ¥${fmt(c.raw)}`}}},
+      scales:{x:{stacked:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13}}},
+              y:{stacked:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#4a6650',font:{size:12},callback:v=>'¥'+Math.round(v/10000)+'万'}}}
+    }
+  });
+}
+
+// ── 推計売上 vs 見込み収益（折れ線比較） ──────────────
+function renderChartAccVsEst(curr,accList){
+  killChart('accvsest');
+  if(!accList.length&&!curr.length) return;
+
+  // PT推計売上（サービス別積み上げ）
+  const svcs=SVC_RULES.filter(s=>s.key!=='other');
+  const datasets=svcs.map(svc=>({
+    label:svc.label,
+    data:Array.from({length:12},(_,i)=>{const m=curr.find(d=>d.month===i+1);return m?monthRevenueBySvc(m,svc.key):null;}),
+    backgroundColor:svc.color+'bb',
+    borderColor:svc.color,
+    borderWidth:1,borderRadius:3,stack:'s',type:'bar',
+  })).filter(ds=>ds.data.some(v=>v>0));
+
+  // 診療部門（見込み収益 - PT推計）
+  if(accList.length>0){
+    const doctorData=Array.from({length:12},(_,i)=>{
+      const a=accList.find(d=>d.month===i+1);
+      const m=curr.find(d=>d.month===i+1);
+      if(!a) return null;
+      const diff=a.totalRevenue-(m?monthRevenue(m):0);
+      return diff>0?diff:0;
+    });
+    if(doctorData.some(v=>v>0)){
+      datasets.push({
+        label:'診療部門',data:doctorData,
+        backgroundColor:'rgba(41,128,185,.65)',borderColor:'#2980b9',
+        borderWidth:1,borderRadius:3,stack:'s',type:'bar',
+      });
+    }
+  }
+
+  // 目標ライン（各自設定してください）
+  const TARGET=0;
+  datasets.push({
+    label:'目標ライン',
+    data:Array(12).fill(TARGET),
+    type:'line',
+    borderColor:'#c0392b',
+    borderWidth:2,
+    borderDash:[6,4],
+    pointRadius:0,
+    fill:false,
+    stack:undefined,
+    order:-1,
+  });
+
+  const ctx=document.getElementById('cAccVsEst').getContext('2d');
+  charts.accvsest=new Chart(ctx,{
+    type:'bar',
+    data:{labels:MLABELS,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:true,labels:{color:'#1a3a20',font:{size:12},boxWidth:10,padding:10,
+          filter:item=>item.text!=='目標ライン'  // 凡例から目標ラインを除外
+        }},
+        tooltip:{backgroundColor:'#fff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',
+          borderColor:'#c8dfc8',borderWidth:1,padding:8,
+          callbacks:{
+            label:c=>{
+              if(c.dataset.label==='目標ライン') return null;
+              return `${c.dataset.label}: ¥${fmt(c.raw)}`;
+            },
+            afterBody:items=>{
+              const total=items.filter(i=>i.dataset.label!=='目標ライン')
+                              .reduce((s,i)=>s+(i.raw||0),0);
+              if(!total) return [];
+              const diff=total-TARGET;
+              const sign=diff>=0?'▲':'▼';
+              return [`合計: ¥${fmt(total)}`,`目標比: ${sign}¥${fmt(Math.abs(diff))}`];
+            }
+          }
+        }
+      },
+      scales:{
+        x:{stacked:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13}}},
+        y:{stacked:true,grid:{color:'rgba(100,160,100,.3)'},
+          ticks:{color:'#2c4a30',font:{size:13},callback:v=>'¥'+Math.round(v/10000)+'万'}}
+      }
+    }
+  });
+}
+
+function renderChartNewPt(npList,prevList){
+  killChart('newpt');
+  const canvas=document.getElementById('cNewPt');
+  if(!npList.length){ if(canvas) canvas.style.opacity='0'; return; }
+  if(canvas) canvas.style.opacity='1';
+
+  const doctorSet=new Set();
+  npList.forEach(row=>Object.keys(row.doctors||{}).forEach(d=>doctorSet.add(d)));
+  const doctors=[...doctorSet].sort((a,b)=>{
+    if(a==='指名なし') return -1;
+    if(b==='指名なし') return 1;
+    return a.localeCompare(b,'ja');
+  });
+  if(!doctors.length) return;
+
+  // グリーン系グラデーション統一パレット（メインから薄く）
+  const doctorColorMap={
+    '指名なし':'#1e8449',  // 濃い緑（最多）
+    'DR_A':    '#2980b9',  // 青（院長）
+    'DR_B':    '#76b041',  // 黄緑
+    'DR_C':    '#4a9e7c',  // ティールグリーン
+    'DR_D':    '#a8c84a',  // オリーブ
+    '松本':    '#3d8a6e',  // 深ティール
+    '大田':    '#6aab3e',  // 明るい緑
+    '丸山':    '#2d6a4f',  // 深緑
+    '宮越':    '#52b788',  // ミント
+    '鈴木':    '#95c947',  // 黄緑2
+    '阿部':    '#40916c',  // 中緑
+  };
+  const fallbackPalette=['#34495e','#9b59b6','#f39c12','#1abc9c','#e74c3c','#3498db','#95a5a6'];
+  function colorForDoctor(doctor, idx){
+    return doctorColorMap[doctor] || fallbackPalette[idx % fallbackPalette.length];
+  }
+  const datasets=doctors.map((doctor,idx)=>{
+    const color=colorForDoctor(doctor, idx);
+    return {
+      label:doctor,
+      data:Array.from({length:12},(_,i)=>{
+        const row=npList.find(d=>d.month===i+1);
+        return row ? (row.doctors?.[doctor] ?? null) : null;
+      }),
+      borderColor:color,
+      backgroundColor:color+'22',
+      tension:.35,
+      fill:false,
+      pointBackgroundColor:color,
+      pointRadius:3,
+      spanGaps:true
+    };
+  }).filter(ds=>ds.data.some(v=>v!==null&&v>0));
+
+  const ctx=document.getElementById('cNewPt').getContext('2d');
+  charts.newpt=new Chart(ctx,{
+    type:'line',
+    data:{labels:MLABELS,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'#1a3a20',font:{size:12},boxWidth:11,padding:12}},
+        tooltip:{backgroundColor:'#fff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',borderColor:'#c8dfc8',borderWidth:1,padding:8,
+          callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw)}名`}}},
+      scales:{x:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13}}},
+              y:{beginAtZero:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13},callback:v=>v+'名'}}}
+    }
+  });
+}
+
+
+// ── 新患・再初診グラフ ────────────────────────────────
+function renderChartVisitor(visList){
+  killChart('visitor');
+  const canvas=document.getElementById('cVisitor');
+  if(!visList.length){ if(canvas) canvas.style.opacity='0'; return; }
+  if(canvas) canvas.style.opacity='1';
+  const shinData=Array.from({length:12},(_,i)=>{const v=visList.find(d=>d.month===i+1);return v?v.shinsin:null;});
+  const saiData =Array.from({length:12},(_,i)=>{const v=visList.find(d=>d.month===i+1);return v?v.saishoshin:null;});
+  const ctx=document.getElementById('cVisitor').getContext('2d');
+  charts.visitor=new Chart(ctx,{
+    type:'bar',
+    data:{labels:MLABELS,datasets:[
+      {label:'新患（初診）',  data:shinData,backgroundColor:'rgba(142,68,173,.75)',borderColor:'#8e44ad',borderWidth:1,borderRadius:3,stack:'s'},
+      {label:'再初診',       data:saiData, backgroundColor:'rgba(142,68,173,.35)',borderColor:'#8e44ad',borderWidth:1,borderRadius:3,stack:'s'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'#1a3a20',font:{size:13},boxWidth:11,padding:13}},
+        tooltip:{backgroundColor:'#fff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',borderColor:'#c8dfc8',borderWidth:1,padding:8,
+          callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw)}名`}}},
+      scales:{x:{stacked:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13}}},
+              y:{stacked:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13},callback:v=>v+'名'}}}
+    }
+  });
+}
+
+function renderChartVisitorCum(visList){
+  killChart('visitorcum');
+  const canvas=document.getElementById('cVisitorCum');
+  if(!visList.length){ if(canvas) canvas.style.opacity='0'; return; }
+  if(canvas) canvas.style.opacity='1';
+  let cumShin=0,cumSai=0;
+  const cumShinData=[],cumSaiData=[],labels=[];
+  for(let m=1;m<=12;m++){
+    const v=visList.find(d=>d.month===m);
+    if(!v) continue;
+    cumShin+=v.shinsin; cumSai+=v.saishoshin;
+    cumShinData.push(cumShin); cumSaiData.push(cumSai);
+    labels.push(m+'月');
+  }
+  const ctx=document.getElementById('cVisitorCum').getContext('2d');
+  charts.visitorcum=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'新患 累計',data:cumShinData,borderColor:'#8e44ad',backgroundColor:'rgba(142,68,173,.1)',borderWidth:2,pointBackgroundColor:'#8e44ad',pointRadius:4,tension:0.35,fill:true},
+      {label:'再初診 累計',data:cumSaiData,borderColor:'rgba(142,68,173,.5)',backgroundColor:'transparent',borderWidth:2,pointBackgroundColor:'rgba(142,68,173,.5)',pointRadius:4,tension:0.35,fill:false,borderDash:[5,4]},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'#1a3a20',font:{size:13},boxWidth:11,padding:13}},
+        tooltip:{backgroundColor:'#fff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',borderColor:'#c8dfc8',borderWidth:1,padding:8,
+          callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw)}名`}}},
+      scales:{x:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13}}},
+              y:{beginAtZero:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13},callback:v=>v+'名'}}}
+    }
+  });
+}
+
+// ── 曜日別 見込み収益（平均）グラフ ──────────────────
+function renderChartWeekday(year){
+  killChart('weekday');
+  const empty=document.getElementById('emptyWeekday');
+  const canvas=document.getElementById('cWeekday');
+
+  // 全年のaccountingから曜日別集計（selectedYearのみ）
+  const accAll=getAccounting(year);
+  if(!accAll.length){
+    if(canvas) canvas.style.opacity='0';
+    if(empty) empty.style.display='block';
+    return;
+  }
+  if(canvas) canvas.style.opacity='1';
+  if(empty) empty.style.display='none';
+
+  // 経理ExcelはJS側に日次データがないため、
+  // parseAccountingExcelで日次データも保持するよう拡張済みの場合はそちらを使う
+  // → 現状はmonthlyデータのみなので、曜日はA列シリアル値から計算
+  // store.accountingDailyに日次データがあれば使う
+  const daily=store.accountingDaily||{};
+  const weekdayTotal=[0,0,0,0,0,0,0];
+  const weekdayDays =[0,0,0,0,0,0,0];
+
+  Object.values(daily).filter(d=>d.year===year).forEach(d=>{
+    d.days.forEach(row=>{
+      if(!row.revenue||row.revenue===0) return;
+      const dt=new Date((row.serial-25569)*86400*1000);
+      const wd=dt.getUTCDay(); // 0=日,1=月,...,6=土
+      const idx=wd===0?6:wd-1; // 0=月,...,6=日 に変換
+      weekdayTotal[idx]+=row.revenue;
+      weekdayDays[idx]++;
+    });
+  });
+
+  const labels=['月','火','水','木','金','土','日'];
+  const avgData=weekdayTotal.map((t,i)=>weekdayDays[i]>0?Math.round(t/weekdayDays[i]):0);
+
+  // 診療日が1日以上あれば表示（火・日など休診日は0のまま表示）
+  if(!weekdayDays.some(d=>d>0)){
+    if(canvas) canvas.style.opacity='0';
+    if(empty) empty.style.display='block';
+    return;
+  }
+
+  const maxVal=Math.max(...avgData);
+  // 休診日(0)はグレー、最高値は青、その他は緑
+  const colors=avgData.map(v=>v===0?'rgba(180,180,180,.4)':v===maxVal?'rgba(41,128,185,.85)':'rgba(30,132,73,.7)');
+
+  const ctx=document.getElementById('cWeekday').getContext('2d');
+  charts.weekday=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{
+      label:'見込み収益（平均）',
+      data:avgData,
+      backgroundColor:colors,
+      borderColor:colors.map((_,i)=>avgData[i]===0?'rgba(180,180,180,1)':avgData[i]===maxVal?'rgba(41,128,185,1)':'rgba(30,132,73,1)'),
+      borderWidth:1,borderRadius:4,
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#fff',titleColor:'#1a1a1a',bodyColor:'#2c4a30',
+          borderColor:'#c8dfc8',borderWidth:1,padding:8,
+          callbacks:{label:c=>`平均 ¥${c.raw.toLocaleString('ja-JP')}`}}
+      },
+      scales:{
+        x:{grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:14}}},
+        y:{beginAtZero:true,grid:{color:'rgba(100,160,100,.3)'},ticks:{color:'#2c4a30',font:{size:13},
+          callback:v=>'¥'+Math.round(v/10000)+'万'}}
+      }
+    }
+  });
+}
+function loadSample(){
+  store.monthData={};
+  store.accounting={};
+  store.newPatient={};
+  store.accountingDaily={};
+  const pts=['PT_A','PT_B','PT_C','PT_D','PT_E','PT_F'];
+  const menus=[
+    {name:'保険メニューB',base:90},
+    {name:'自費メニューA',base:18},
+    {name:'自費メニューB',base:12},
+    {name:'グループメニューA',base:8},
+    {name:'グループメニューB',base:12},
+    {name:'処置メニューA',base:70},
+    {name:'新メニュー(単価未設定)',base:6},
+  ];
+  for(let yr=2025;yr<=2026;yr++){
+    const maxM=yr===2026?2:12;
+    for(let m=1;m<=maxM;m++){
+      const key=`${yr}-${String(m).padStart(2,'0')}`;
+      const rows=[];
+      for(const pt of pts){
+        for(const menu of menus){
+          const cnt=Math.round(menu.base*(0.8+Math.random()*.4)*(1+(yr-2025)*.05));
+          rows.push({name:`${menu.name}　${pt}`,service:classifySvc(menu.name),pt,count:cnt,minutes:cnt*20,csvRevenue:0});
+        }
+      }
+      store.monthData[key]={year:yr,month:m,key,rows};
+      const ptRevenue=rows.reduce((s,r)=>s+estimateRevenue(r),0);
+      const totalRevenue=Math.round(ptRevenue*1.22);
+      const insuranceRevenue=Math.round(totalRevenue*0.58);
+      const selfPayRevenue=Math.round(totalRevenue*0.24);
+      store.accounting[key]={year:yr,month:m,key,totalRevenue,insuranceRevenue,selfPayRevenue};
+      const days=[];
+      for(let d=1;d<=24;d++){
+        const serial = Math.floor((Date.UTC(yr,m-1,d)/86400000)+25569);
+        const dow=new Date(Date.UTC(yr,m-1,d)).getUTCDay();
+        if(dow===0||dow===3) continue;
+        days.push({serial,revenue:Math.round((totalRevenue/20)*(0.8+Math.random()*0.4)),year:yr,month:m});
+      }
+      store.accountingDaily[key]={year:yr,month:m,key,days};
+      store.newPatient[key]={year:yr,month:m,key,shinsin:Math.round(22*(0.7+Math.random()*0.6)),saishoshin:Math.round(8*(0.7+Math.random()*0.6)),doctors:{'指名なし':Math.round(10*(0.7+Math.random()*0.6)),'DR_A':Math.round(8*(0.7+Math.random()*0.6)),'DR_B':Math.round(3*(0.7+Math.random()*0.6)),'DR_C':Math.round(2*(0.7+Math.random()*0.6))}};
+    }
+  }
+  loadPrices();
+  updateFileChips();
+  buildDashboard();
+}
+</script>
+</body>
+</html>
